@@ -8,7 +8,7 @@ import time
 # --- КОНФИГУРАЦИЯ ---
 
 # 1. Путь к папке с логами (Замените на свой!)
-ROOT_LOG_DIR = r'C:\logs' 
+ROOT_LOG_DIR = r'C:\logs\SA004444' 
 
 # 2. Дата начала (файлы старше этой даты игнорируются)
 START_DATE_STR = '2025-01-01'
@@ -95,6 +95,13 @@ def parse_log_file(filepath):
     except Exception as e:
         print(f"Error reading {filepath}: {e}")
         return None
+
+    # Проверка на полноту данных: если хоть одна метрика None -> игнорируем файл
+    for _, name in METRICS_LIST:
+        if data[name] is None:
+            # Опционально: можно раскомментировать для отладки
+            # print(f"Skipping {data['Filename']}: missing {name}")
+            return None
 
     return data
 
