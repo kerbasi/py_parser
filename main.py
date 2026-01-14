@@ -4,28 +4,23 @@ import pandas as pd
 import gzip
 from datetime import datetime
 import time
+import argparse
+import json
+
 
 # --- КОНФИГУРАЦИЯ ---
 
 # 1. Путь к папке с логами (Замените на свой!)
-ROOT_LOG_DIR = r'C:\logs\SA004444' 
+# 1. Путь к папке с логами (по умолчанию, может быть переопределен через аргументы)
+DEFAULT_LOG_DIR = r'C:\logs\SA004444' 
 
 # 2. Дата начала (файлы старше этой даты игнорируются)
 START_DATE_STR = '2025-01-01'
 START_DATE = datetime.strptime(START_DATE_STR, '%Y-%m-%d').timestamp()
 
 # 3. Полный список метрик
-METRICS_LIST = [
-    # --- SEARCH BY ID (Стандартный поиск по номеру теста) ---
-    ('49.2.2', 'VDD_ASIC1_VOUT_Voltage'), 
-    ('49.2.3', 'VDD_ASIC1_VOUT_Current'),
-    ('49.2.12', 'VDD_ASIC2_VOUT_Voltage'), 
-    ('49.2.13', 'VDD_ASIC2_VOUT_Current'),
-
-    # --- SEARCH BY NAME (Поиск по имени, когда ID = N/A) ---
-    ('asic1_asic_total_power', 'ASIC1_Total_Power'),
-    ('asic2_asic_total_power', 'ASIC2_Total_Power'),
-]
+# 3. Полный список метрик
+# METRICS_LIST удален, теперь загружается из JSON
 
 # --- ЛОГИКА ---
 
@@ -47,14 +42,23 @@ def get_regex_pattern(search_key):
         
     return pattern
 
-def parse_log_file(filepath):
+def load_metrics(filepath):
+    try:
+        with open(filepath, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"Error loading metrics from {filepath}: {e}")
+        return []
+
+def parse_log_file(filepath, metrics_list):
     data = {
         'Filename': os.path.basename(filepath),
         'Date': time.ctime(os.path.getmtime(filepath))
     }
     
+    
     # Инициализация колонок (None по умолчанию)
-    for _, name in METRICS_LIST:
+    for _, name in metrics_list:
         data[name] = None
 
     try:
@@ -71,7 +75,7 @@ def parse_log_file(filepath):
 
             # Группируем метрики (на случай дубликатов ключей)
             metrics_map = {}
-            for search_key, col_name in METRICS_LIST:
+            for search_key, col_name in metrics_list:
                 if search_key not in metrics_map:
                     metrics_map[search_key] = []
                 metrics_map[search_key].append(col_name)
@@ -97,7 +101,7 @@ def parse_log_file(filepath):
         return None
 
     # Проверка на полноту данных: если хоть одна метрика None -> игнорируем файл
-    for _, name in METRICS_LIST:
+    for _, name in metrics_list:
         if data[name] is None:
             # Опционально: можно раскомментировать для отладки
             # print(f"Skipping {data['Filename']}: missing {name}")
@@ -106,9 +110,25 @@ def parse_log_file(filepath):
     return data
 
 def main():
+    parser = argparse.ArgumentParser(description="Log Metrics Parser")
+    parser.add_argument('--logs-dir', type=str, default=DEFAULT_LOG_DIR, help='Path to the logs directory')
+    parser.add_argument('--output-dir', type=str, default='.', help='Directory to save the results CSV')
+    parser.add_argument('--metrics-file', type=str, default='metrics.json', help='Path to metrics JSON file')
+    args = parser.parse_args()
+
+    root_log_dir = args.logs_dir
+    output_dir = args.output_dir
+    metrics_file = args.metrics_file
+
+    metrics_list = load_metrics(metrics_file)
+    if not metrics_list:
+        print("No metrics loaded. Exiting.")
+        return
+
     results = []
     print(f"--- ЗАПУСК ПАРСЕРА ---")
-    print(f"Папка: {ROOT_LOG_DIR}")
+    print(f"Папка: {root_log_dir}")
+    print(f"Метрики: {metrics_file} ({len(metrics_list)} шт.)")
     print(f"Фильтр даты: {START_DATE_STR}")
     print("Фильтр имен: исключаем 'SUMMARY' и 'led'")
     
@@ -116,7 +136,7 @@ def main():
     skipped_count = 0
     
     # Рекурсивный обход папок
-    for root, dirs, files in os.walk(ROOT_LOG_DIR):
+    for root, dirs, files in os.walk(root_log_dir):
         for file in files:
             # 1. Фильтр расширения
             if not file.endswith((".log", ".txt", ".gz")):
@@ -131,7 +151,7 @@ def main():
             filepath = os.path.join(root, file)
             if os.path.getmtime(filepath) >= START_DATE:
                 scanned_count += 1
-                parsed = parse_log_file(filepath)
+                parsed = parse_log_file(filepath, metrics_list)
                 if parsed:
                     results.append(parsed)
                     # Вывод прогресса каждые 50 файлов (чтобы не спамить)
@@ -144,7 +164,7 @@ def main():
         df = pd.DataFrame(results)
         
         # Сортировка колонок для красоты (Имя -> Дата -> Метрики по порядку)
-        metric_cols = [item[1] for item in METRICS_LIST]
+        metric_cols = [item[1] for item in metrics_list]
         final_cols = ['Filename', 'Date'] + metric_cols
         # Оставляем только те, что реально создались
         final_cols = [c for c in final_cols if c in df.columns]
@@ -155,8 +175,15 @@ def main():
         print("="*80)
         print(df.head(5).to_string())
 
-        # Сохранение
-        output_csv = 'ft_metrics_final.csv'
+        # Сохранение с уникальным именем
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f'ft_metrics_final_{timestamp}.csv'
+        output_csv = os.path.join(output_dir, filename)
+        
+        # Создаем output_dir если нет
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+            
         df.to_csv(output_csv, index=False)
         print(f"\n[OK] Полный отчет сохранен в файл: {os.path.abspath(output_csv)}")
         

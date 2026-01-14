@@ -1,0 +1,74 @@
+[
+    [
+        "49.2.2",
+        "VDD_ASIC1_VOUT_Voltage"
+    ],
+    [
+        "49.2.3",
+        "VDD_ASIC1_VOUT_Current"
+    ],
+    [
+        "49.2.12",
+        "VDD_ASIC2_VOUT_Voltage"
+    ],
+    [
+        "49.2.13",
+        "VDD_ASIC2_VOUT_Current"
+    ],
+    [
+        "49.3.1",
+        "Asic 2 VDD Main Power"
+    ],
+    [
+        "49.3.2",
+        "Asic 2 HVDD PL1 Power"
+    ],
+    [
+        "49.3.3",
+        "Asic 2 DVDD PL1 Power"
+    ],
+    [
+        "49.3.4",
+        "Asic 2 HVDD PL0 Power"
+    ],
+    [
+        "49.3.5",
+        "Asic 2 DVDD PL0 Power"
+    ],
+    [
+        "49.6.1",
+        "Asic 1 VDD Main Power"
+    ],
+    [
+        "49.6.2",
+        "Asic 1 HVDD PL1 Power"
+    ],
+    [
+        "49.6.3",
+        "Asic 1 DVDD PL1 Power"
+    ],
+    [
+        "49.6.4",
+        "Asic 1 HVDD PL0 Power"
+    ],
+    [
+        "49.6.5",
+        "Asic 1 DVDD PL0 Power"
+    ],
+    [
+        "asic1_asic_total_power",
+        "ASIC1_Total_Power"
+    ],
+    [
+        "asic2_asic_total_power",
+        "ASIC2_Total_Power"
+    ],
+    [
+        "asic1_asic_max_temp",
+        "Asic 1 max Temperature"
+    ],
+    [
+        "asic2_asic_max_temp",
+        "Asic 2 max Temperature"
+    ]
+]
